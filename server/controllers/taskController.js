@@ -200,11 +200,16 @@ export const dashboardStatistics = async (req, res) => {
 export const getTasks = async (req, res) => {
   try {
     const { stage, isTrashed } = req.query;
-
+    const { userId, isAdmin } = req.user;
+    
     let query = { isTrashed: isTrashed ? true : false };
 
     if (stage) {
       query.stage = stage;
+    }
+
+    if(!isAdmin){
+      query.team = { $all: [userId] }
     }
 
     let queryResult = Task.find(query)
@@ -214,7 +219,23 @@ export const getTasks = async (req, res) => {
       })
       .sort({ _id: -1 });
 
-    const tasks = await queryResult;
+      const allTasks = isAdmin
+      ? await Task.find(query)
+          .populate({
+            path: "team",
+            select: "name title email",
+          })
+          .sort({ _id: -1 })
+      : await Task.find(query)
+          .populate({
+            path: "team",
+            select: "name title email",
+          })
+          .sort({ _id: -1 });
+
+          console.log(allTasks)
+
+    const tasks = allTasks;
 
     res.status(200).json({
       status: true,
@@ -295,7 +316,7 @@ export const updateTask = async (req, res) => {
 
     res
       .status(200)
-      .json({ status: true, message: "Task duplicated successfully." });
+      .json({ status: true, message: "Task updated successfully." });
   } catch (error) {
     console.log(error);
     return res.status(400).json({ status: false, message: error.message });
